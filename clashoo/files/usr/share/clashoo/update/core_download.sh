@@ -659,9 +659,10 @@ install_with_rollback() {
 }
 
 rm -f /tmp/clash.gz /tmp/clash /usr/share/clashoo/core_down_complete 2>/dev/null
-: > "$LOG_FILE"
 touch /var/run/core_update 2>/dev/null
 trap finalize EXIT
+write_log "内核下载任务启动"
+write_log "下载架构：${MODELTYPE:-未设置}"
 
 if [ -n "$CUSTOM_CORE_URL" ]; then
 	write_log "使用自定义内核下载链接"
@@ -702,10 +703,12 @@ if [ "$CORETYPE" = "4" ] || [ "$CORETYPE" = "5" ]; then
 	OPENWRT_ARCH="$(detect_openwrt_arch)"
 	if [ "$CORETYPE" = "4" ]; then
 		write_log "已选择 sing-box 稳定版"
+		write_log "正在获取 GitHub Release 信息..."
 		TAG=$(fetch_latest_tag "SagerNet/sing-box")
 		[ -z "$TAG" ] && write_log "获取 sing-box 稳定版版本号失败" && exit 1
 	else
 		write_log "已选择 sing-box 预发布版"
+		write_log "正在获取 GitHub Release 信息..."
 		TAG=$(fetch_prerelease_tag "SagerNet/sing-box")
 		[ -z "$TAG" ] && TAG=$(fetch_latest_tag "SagerNet/sing-box")
 		[ -z "$TAG" ] && write_log "获取 sing-box 预发布版版本号失败" && exit 1
@@ -764,10 +767,13 @@ fi
 if [ "$CORETYPE" = "1" ]; then
 	write_log "已选择内核通道：mihomo Smart 版（vernesong fork）"
 	TAG="Prerelease-Alpha"
+	write_log "正在获取 GitHub Release 信息..."
 	ASSET=$(pick_mihomo_asset "vernesong/mihomo" "$TAG" "$(map_mihomo_arch "$MODELTYPE")" "alpha")
-	[ -z "$ASSET" ] && TAG=$(fetch_prerelease_tag "vernesong/mihomo")
-	[ -z "$TAG" ] && write_log "获取 Smart 版本号失败" && exit 1
-	[ -z "$ASSET" ] && ASSET=$(pick_mihomo_asset "vernesong/mihomo" "$TAG" "$(map_mihomo_arch "$MODELTYPE")" "alpha")
+	if [ -z "$ASSET" ]; then
+		ALT_TAG=$(fetch_prerelease_tag "vernesong/mihomo")
+		[ -n "$ALT_TAG" ] && TAG="$ALT_TAG"
+		ASSET=$(pick_mihomo_asset "vernesong/mihomo" "$TAG" "$(map_mihomo_arch "$MODELTYPE")" "alpha")
+	fi
 	URL="https://github.com/vernesong/mihomo/releases/download/${TAG}/${ASSET}"
 	TARGET="/usr/bin/smart"
 	VERSION_FILE="/usr/share/clashoo/mihomo_version"
@@ -775,6 +781,7 @@ if [ "$CORETYPE" = "1" ]; then
 	[ "$VERSION_VALUE" = "smart-" ] && VERSION_VALUE="smart-${TAG}"
 elif [ "$CORETYPE" = "2" ]; then
 	write_log "已选择内核通道：稳定版"
+	write_log "正在获取 GitHub Release 信息..."
 	TAG=$(fetch_latest_tag "MetaCubeX/mihomo")
 	[ -z "$TAG" ] && write_log "获取稳定版版本号失败" && exit 1
 	ASSET=$(pick_mihomo_asset "MetaCubeX/mihomo" "$TAG" "$(map_mihomo_arch "$MODELTYPE")" "stable")
@@ -785,6 +792,7 @@ elif [ "$CORETYPE" = "2" ]; then
 else
 	write_log "已选择内核通道：预发布版"
 	TAG="Prerelease-Alpha"
+	write_log "正在获取 GitHub Release 信息..."
 	ASSET=$(pick_mihomo_asset "MetaCubeX/mihomo" "$TAG" "$(map_mihomo_arch "$MODELTYPE")" "alpha")
 	[ -z "$ASSET" ] && TAG=$(fetch_prerelease_tag "MetaCubeX/mihomo")
 	[ -z "$TAG" ] && TAG=$(fetch_latest_tag "MetaCubeX/mihomo")
@@ -804,9 +812,11 @@ if [ -z "$TAG" ]; then
 fi
 
 if [ -z "$ASSET" ]; then
-	write_log "未找到对应架构的内核文件"
+	write_log "未找到对应架构的内核文件（${MODELTYPE:-unknown} / ${TAG:-unknown}）"
 	exit 1
 fi
+write_log "版本标签：$TAG"
+write_log "匹配内核文件：$ASSET"
 
 write_log "开始下载内核"
 if ! download_with_mirrors "$URL" /tmp/clash.gz; then
