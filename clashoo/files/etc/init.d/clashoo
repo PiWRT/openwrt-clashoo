@@ -310,6 +310,7 @@ inject_dns_fallback_filter() {
 	grep -Eq '^[[:space:]]+fallback-filter:' "$cfg" 2>/dev/null && return 0
 	awk '
 		function indent_len(s) { match(s, /[^ ]/); return RSTART ? RSTART - 1 : length(s) }
+		function pad(n,    i, s) { s=""; for (i=0; i<n; i++) s=s " "; return s }
 		/^dns:[[:space:]]*$/ { dns=1; child_indent=-1; print; next }
 		dns {
 			cur_indent = indent_len($0)
@@ -317,7 +318,7 @@ inject_dns_fallback_filter() {
 				child_indent = cur_indent
 			if ($0 ~ /^[^[:space:]#][^:]*:/) {
 				if (!inserted) {
-					sp = sprintf("%*s", child_indent > 0 ? child_indent : 2, "")
+					sp = pad(child_indent > 0 ? child_indent : 2)
 					print sp "fallback-filter:"
 					print sp "  geoip: false"
 					inserted=1
@@ -328,7 +329,7 @@ inject_dns_fallback_filter() {
 		{ print }
 		END {
 			if (dns && !inserted) {
-				sp = sprintf("%*s", child_indent > 0 ? child_indent : 2, "")
+				sp = pad(child_indent > 0 ? child_indent : 2)
 				print sp "fallback-filter:"
 				print sp "  geoip: false"
 			}
