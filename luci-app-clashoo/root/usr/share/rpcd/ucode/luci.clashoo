@@ -2446,6 +2446,9 @@ return { success: false, error: 'missing_yq', message: '缺少 yq，无法注入
 		return { success: false, error: "inject_failed", message: "订阅 URL 注入失败" };
 	}
 	system("rm -f " + shell_quote(exploded));
+		/* 替换模板中的 直连 → DIRECT（兼容不同模板的命名差异） */
+		system("sed -i 's/直连/DIRECT/g' " + shell_quote(tmp_out) + " 2>/dev/null");
+	system("yq e '(.proxy-groups[].proxies) |= sub(\"直连\", \"DIRECT\")' " + shell_quote(tmp_out) + " -i 2>/dev/null");
 
 if (!output_name) {
 output_name = 'tpl-rewrite.yaml';
