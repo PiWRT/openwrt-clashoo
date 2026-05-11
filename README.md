@@ -27,59 +27,54 @@
 ## 功能特性
 
 **双内核，一个界面**
-- **mihomo（Clash Meta）** — 稳定版 / Alpha 版 / **Smart 版**（[openclash smart](https://github.com/vernesong/mihomo)，支持 `type: smart` 策略组）三选一，走 YAML 订阅
+- **mihomo（Clash Meta）** — 稳定版 / Alpha 版 / Smart 版三选一，走 YAML 订阅
 - **sing-box** — 稳定版 / Alpha 版可切，走 JSON 配置文件
 - 内核切换无需重装，同一套 UCI 配置自动适配两端
 
 **概览面板**
-- 运行状态 / 健康检查（`pass` / `fail` / 降级运行）一栏可见
-- 内核切换（Mihomo / Smart / Sing-box 三向切换，当前选中高亮）
+- 运行状态与健康检查（DNS / 显式代理 / 透明代理三项检测）实时可见
+- 秒级响应启停开关，点击即反馈
+- 内核切换（Mihomo / Smart / Sing-box）当前选中高亮
 - 透明代理分解（TCP / UDP / 网络栈）
-- 访问检查：内外站延迟分档显示（<400ms 绿 / <800ms 黄 / >800ms 红 / 超时红色单格）
+- 访问检查：内外站延迟分档（<400ms 绿 / <800ms 黄 / >800ms 红）
 - 实时流量监控（上行 / 下行 / 活跃连接数）
-- 代理模式、运行模式、配置文件、管理面板一排下拉直达
 
-**DNS 策略（全面重构）**
-- 增强模式：Fake-IP ↔ Redir-Host 切换，不丢失字段
-- ECS 客户端子网（mihomo `ecs` / sing-box `client_subnet` 自动写入）
-- 上游 DNS 角色划分：默认 / 国内 / 代理 / 直连 / Fallback
-- 分流解析策略（按 `geosite`、`geoip`、域名规则下发到不同上游）
-- Fallback GeoIP 过滤与 IP-CIDR 过滤可配
-- Bootstrap DNS（用于解析 DoH / DoT / DoQ 服务器域名）
+**配置管理**
+- 订阅一键拉取并自动生成配置
+- 配置上传、在线编辑、自定义文件输出
+- 模板复写：上传 YAML 模板 + 输入订阅链接 → 自动注入 URL 并验校
+- 生成后自动 `mihomo -t` 干跑校验，坏配置不写入
+
+**DNS 策略**
+- 增强模式：Fake-IP / Redir-Host 自由切换
+- 上游 DNS 按角色分流：默认 / 代理 / 直连 / Fallback
+- Bootstrap DNS、Fallback GeoIP 过滤、ECS 客户端子网
+- DNS 防泄漏：阻止国内 DNS 解析国外域名、阻断 DoT/DoQ
 
 **透明代理**
-- Fake-IP / TUN / Mixed 三种运行模式，切换后前端稳定不回退
-- TCP `redirect` + UDP `tproxy`（Fake-IP）/ TUN（TUN、Mixed）自动匹配
-- `gVisor` / `system` / `mixed` 网络栈按模式自动选择
-
-**管理面板**
-- 内置 MetaCubeXD / YACD / Zashboard / Razord 四选一
-- 一键更新面板（GitHub pages 直拉），更新日志实时落盘到「系统 → 日志 → 更新日志」
+- Fake-IP / TUN / Mixed 三种模式
+- TCP Redirect + UDP TProxy 自动匹配
+- gVisor / System / Mixed 网络栈可选
 
 **系统与数据**
-- 内核下载支持 GitHub / GHProxy 镜像源，按架构建议版本
-- GeoIP / GeoSite 定时自动更新（间隔可配）
-- 访问密钥（Dashboard）随机生成 / 掩码显示
+- 内核、管理面板、GeoIP / GeoSite 一键下载/更新
+- 镜像源自动回退（自定义 → gh-proxy → 直连 GitHub 兜底）
+- 面板四选一（MetaCubeXD / YACD / Zashboard / Razord）
 
 ---
 
-## 界面预览（暗黑模式）
-
-三个内核（Mihomo / Smart / Sing-box）在 Fake-IP 模式下的运行状态，访问检查全绿：
+## 界面预览
 
 ![hero](https://raw.githubusercontent.com/kenzok8/kenzok8/main/screenshot/clashoo-hero.png)
 
 <details>
-<summary>展开看每个内核在 Fake-IP / TUN / Mixed 三种模式下的运行状态</summary>
+<summary>展开看每个内核在三种模式下的运行状态</summary>
 
-**Mihomo**
-![mihomo](https://raw.githubusercontent.com/kenzok8/kenzok8/main/screenshot/clashoo-mihomo.png)
+**Mihomo** ![mihomo](https://raw.githubusercontent.com/kenzok8/kenzok8/main/screenshot/clashoo-mihomo.png)
 
-**Smart**
-![smart](https://raw.githubusercontent.com/kenzok8/kenzok8/main/screenshot/clashoo-smart.png)
+**Smart** ![smart](https://raw.githubusercontent.com/kenzok8/kenzok8/main/screenshot/clashoo-smart.png)
 
-**Sing-box**
-![singbox](https://raw.githubusercontent.com/kenzok8/kenzok8/main/screenshot/clashoo-singbox.png)
+**Sing-box** ![singbox](https://raw.githubusercontent.com/kenzok8/kenzok8/main/screenshot/clashoo-singbox.png)
 
 </details>
 
@@ -88,29 +83,23 @@
 ## 仓库结构
 
 ```
-clashoo/                         # 运行时包（/etc/config, /usr/share/clashoo/*）
-├── files/etc/config/clashoo     # UCI 默认模板（DNS 策略、ECS、Fallback 等）
-├── files/etc/init.d/clashoo     # 服务启停
+clashoo/                              # 运行时包
+├── files/etc/config/clashoo          # UCI 默认配置
+├── files/etc/init.d/clashoo          # 服务启停（procd）
 └── files/usr/share/clashoo/
-    ├── lib/
-    │   ├── normalize_singbox_config.uc   # sing-box JSON 规则化（525 行 ucode）
-    │   └── templates/default.json        # sing-box 默认模板
-    ├── runtime/
-    │   ├── yum_change.sh                 # mihomo YAML 生成
-    │   ├── dns_helpers.sh                # POSIX sh DNS 工具函数
-    │   └── ...
-    └── update/                           # 内核 / 面板 / GeoIP 更新脚本
+    ├── net/                          # nftables 防火墙规则 + 连通性检测
+    ├── runtime/                      # mixin.uc（UCI → YAML 覆盖）+ yq merge
+    ├── lib/                          # ucode 工具 + sing-box JSON 规则化
+    ├── update/                       # 内核 / 面板 / GeoIP 更新脚本
+    └── ruleset/                      # .srs 规则集
 
-luci-app-clashoo/                # LuCI 前端插件
+luci-app-clashoo/                     # LuCI 前端 + RPC 后端
 ├── htdocs/luci-static/
-│   ├── resources/view/clashoo/  # overview / config / system 三大页
-│   ├── resources/tools/clashoo.js  # 统一 RPC + toast
-│   └── clashoo/logo.png
-├── po/                          # i18n
+│   ├── resources/view/clashoo/       # overview / config / system 三大页
+│   └── resources/tools/clashoo.js    # 统一 RPC + toast 通知
+├── po/                               # i18n
 └── root/usr/share/rpcd/ucode/
-    └── luci.clashoo             # 后端 RPC（status / set_mode / update_panel 等）
-
-scripts/                         # 安装 / 卸载 / 单元测试
+    └── luci.clashoo                   # 后端 RPC（60+ 方法）
 ```
 
 ---
@@ -119,35 +108,32 @@ scripts/                         # 安装 / 卸载 / 单元测试
 
 | 包名 | 说明 |
 |------|------|
-| `clashoo` | 运行时包，内置 mihomo 二进制并软链 `clash-meta` |
-| `luci-app-clashoo` | LuCI 管理界面（主包） |
+| `clashoo` | 运行时包，内置 mihomo 并软链 clash-meta |
+| `luci-app-clashoo` | LuCI 管理界面 |
 | `luci-i18n-clashoo-zh-cn` | 简体中文翻译（可选） |
 | `luci` | OpenWrt Web 界面框架 |
-| `ucode` | sing-box JSON 规则化运行时（OpenWrt 24.10+ 默认已含） |
+| `ucode` | 配置生成与规则化运行时 |
 | `curl` | 下载 GeoIP / 面板 / 订阅 |
 
-sing-box 二进制由用户按需独立安装（或通过「系统 → 内核下载」一键拉取）。
+sing-box 二进制由用户按需安装，或通过「系统 → 内核下载」一键拉取。
 
 ---
 
 ## 系统要求
 
-- OpenWrt **24.10+**（推荐 `24.10` / `25.x`）
-- 不再维护旧版 LuCI / OpenWrt（如 `18.06`、`21.02`、`23.05`）
+- OpenWrt **24.10+**（推荐 25.x）
 
 ---
 
-## 安装方式
+## 安装
 
-### A. 一键安装（推荐）
-
-安装脚本优先抓最新 `Pre-release`，没有时回退到最新 `Release`：
+### 一键安装
 
 ```bash
 wget -O - https://github.com/kenzok8/openwrt-clashoo/raw/refs/heads/main/scripts/install.sh | ash
 ```
 
-### B. 从 Release 手动安装
+### Release 手动安装
 
 ```bash
 # opkg
@@ -161,7 +147,7 @@ apk add --allow-untrusted luci-app-clashoo_*.apk
 apk add --allow-untrusted luci-i18n-clashoo-zh-cn_*.apk
 ```
 
-### C. 从源码编译
+### 源码编译
 
 ```bash
 git clone https://github.com/kenzok8/openwrt-clashoo.git package/openwrt-clashoo
@@ -169,7 +155,7 @@ make package/clashoo/compile V=s
 make package/luci-app-clashoo/compile V=s
 ```
 
-### 卸载并重置
+### 卸载
 
 ```bash
 wget -O - https://github.com/kenzok8/openwrt-clashoo/raw/refs/heads/main/scripts/uninstall.sh | ash
@@ -177,33 +163,23 @@ wget -O - https://github.com/kenzok8/openwrt-clashoo/raw/refs/heads/main/scripts
 
 ---
 
-## 使用速览
+## 使用
 
-1. **安装** → 浏览器访问 LuCI，进入「服务 → Clashoo」
-2. **上传订阅 / 配置**
-   - mihomo：`配置 → 订阅` 或直接上传 YAML
-   - sing-box：`配置 → 配置文件` 上传 JSON
-3. **选择内核** → 概览右上「内核切换」Mihomo / Smart / Sing-box（Smart 需先在「配置 → 代理 → Smart 策略设置」中启用策略）
-4. **启动服务** → 概览「启用服务」开关
-5. **选运行模式** → Fake-IP（默认）/ TUN / Mixed
-6. **看日志** → 系统 → 日志（运行日志 / 更新日志 / GeoIP 日志）
+1. 安装后进入 LuCI「服务 → Clashoo」
+2. 上传订阅或导入配置文件
+3. 选择内核（Mihomo / Smart / Sing-box）
+4. 点击启用服务
+5. 选运行模式（Fake-IP / TUN / Mixed）
 
 ---
 
-## 开发与测试
+## 开发
 
 ```bash
-# POSIX sh DNS 工具函数单元测试（本机即可跑）
-./scripts/test_dns_helpers.sh
-
-# sing-box JSON 规则化集成测试（需 ucode）
-./scripts/test_singbox_dns_normalize.sh
-
-# init.d 启动守卫静态检查
-./scripts/test_initd_clash.sh
-
-# YAML → sing-box JSON 转换测试（需 ucode / yq / jq）
-./scripts/test_yaml2singbox.sh
+./scripts/test_dns_helpers.sh          # DNS 单元测试
+./scripts/test_singbox_dns_normalize.sh # sing-box 规则化测试
+./scripts/test_initd_clash.sh           # init.d 守卫检查
+./scripts/test_yaml2singbox.sh          # YAML → JSON 转换测试
 ```
 
 ---
@@ -211,12 +187,12 @@ wget -O - https://github.com/kenzok8/openwrt-clashoo/raw/refs/heads/main/scripts
 ## 致谢
 
 - [mihomo](https://github.com/MetaCubeX/mihomo) — Clash Meta 内核
-- [openclash smart](https://github.com/vernesong/mihomo) — Smart 策略组支持
+- [vernesong/mihomo](https://github.com/vernesong/mihomo) — Smart 策略组支持
 - [sing-box](https://github.com/SagerNet/sing-box) — 通用代理平台
-- [fchomo](https://github.com/fcshark-org/openwrt-fchomo) — 参考实现
-- [nikki](https://github.com/nikkinikki-org/OpenWrt-nikki) — 参考实现
+- [nikki](https://github.com/nikkinikki-org/OpenWrt-nikki) — 架构参考
 
-  
+---
+
 ## 许可证
 
-本项目遵循仓库内现有开源许可证（见 `LICENSE`），并保留上游项目的版权与许可声明。
+本项目遵循仓库内开源许可证（见 `LICENSE`），并保留上游项目的版权与许可声明。
