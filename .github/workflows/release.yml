@@ -237,7 +237,7 @@ jobs:
           key = ${B2_APPLICATION_KEY}
           hard_delete = true
           EOF
-          rclone sync feed/ "b2:${B2_BUCKET}/openwrt-feed/" \
+          rclone copy feed/ "b2:${B2_BUCKET}/openwrt-feed/" \
             --checksum \
             --fast-list \
             --transfers 8 \
