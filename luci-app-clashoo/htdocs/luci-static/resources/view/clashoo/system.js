@@ -51,6 +51,30 @@ var CSS = [
   '.cl-log-tab{padding:4px 12px;border:1px solid rgba(128,128,128,.2);border-radius:20px;font-size:12px;cursor:pointer;opacity:.6}',
   '.cl-log-tab.active{opacity:1;font-weight:600;background:rgba(128,128,128,.1)}',
   '.cl-dl-hint{margin-top:6px;font-size:12px;min-height:18px;line-height:1.4}',
+  '.cl-component-card{padding:16px;border:1px solid rgba(128,128,128,.16);border-radius:10px;background:rgba(255,255,255,.03);margin-bottom:18px}',
+  '.cl-component-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}',
+  '.cl-component-head h4{margin:0 0 4px;font-size:14px;font-weight:700;color:var(--title-color,inherit)}',
+  '.cl-component-sub{font-size:12px;color:rgba(120,130,150,.9);line-height:1.45}',
+  '.cl-component-list{display:grid;gap:8px}',
+  '.cl-component-row{display:grid;grid-template-columns:minmax(170px,1.1fr) minmax(180px,1.5fr) minmax(130px,.9fr) auto;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(128,128,128,.14);border-radius:8px;background:rgba(128,128,128,.045)}',
+  '.cl-component-name{font-weight:700;font-size:13px}',
+  '.cl-component-desc{font-size:12px;color:rgba(120,130,150,.92);margin-top:2px}',
+  '.cl-component-version{font-size:12px;line-height:1.45;color:rgba(90,100,120,.95);word-break:break-word}',
+  '.cl-theme-dark .cl-component-version{color:rgba(210,220,235,.86)}',
+  '.cl-component-status{font-size:12px;line-height:1.45;color:rgba(90,100,120,.95)}',
+  '.cl-component-status.running{color:#2f80ed}.cl-component-status.success{color:#239b56}.cl-component-status.failed{color:#d43f3a}',
+  '.cl-component-log{margin-top:10px;font-family:monospace;font-size:11px;white-space:pre-wrap;max-height:140px;overflow:auto;padding:9px;border-radius:8px;background:rgba(128,128,128,.08);color:rgba(90,100,120,.95)}',
+  '.cl-theme-dark .cl-component-log{color:rgba(220,225,235,.85)}',
+  '.cl-component-arch{margin-bottom:12px}',
+  '.cl-component-arch-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 12px;border:1px solid rgba(128,128,128,.14);border-radius:8px;background:rgba(128,128,128,.045)}',
+  '.cl-component-arch-label{font-size:13px;font-weight:700}',
+  '.cl-component-arch-sel{font-size:12px;padding:4px 9px;border:1px solid rgba(128,128,128,.3);border-radius:6px;background:transparent;color:inherit}',
+  '.cl-component-arch-hint{font-size:12px;color:rgba(120,130,150,.9)}',
+  '.cl-comp-var-box{display:inline-flex;gap:4px;margin-top:5px}',
+  '.cl-comp-var{font-size:11px;padding:2px 10px;border-radius:10px;border:1px solid rgba(128,128,128,.3);background:transparent;color:inherit;cursor:pointer}',
+  '.cl-comp-var.on{background:rgba(var(--primary-rgb,0,122,255),.14);border-color:rgba(var(--primary-rgb,0,122,255),.5);font-weight:700}',
+  '.cl-comp-updatable{font-size:10px;font-weight:700;color:#239b56;margin-left:2px}',
+  '@media(max-width:760px){.cl-component-head{display:block}.cl-component-head .btn{margin-top:10px}.cl-component-row{grid-template-columns:1fr}.cl-component-row .btn{width:100%}}',
   /* 统一 form.Map 字体大小与 config 页一致 */
   '.cl-panel .cbi-section>h3{font-size:13px !important;font-weight:600;margin-bottom:8px}',
   '.cl-panel .cbi-value-title{font-size:13px !important}',
@@ -259,6 +283,7 @@ return view.extend({
 
     var kernelPanel = E('div', { 'class': 'cl-panel' + (this._tab === 'kernel' ? ' active' : ''), id: 'cl-panel-kernel' });
     panelEls['kernel'] = kernelPanel;
+    this._buildComponentUpdatePanel(kernelPanel, cpuArch);
     this._buildKernelPanel(kernelPanel, cpuArch);
 
     var rulesPanel = E('div', { 'class': 'cl-panel' + (this._tab === 'rules' ? ' active' : ''), id: 'cl-panel-rules' });
@@ -292,6 +317,187 @@ return view.extend({
     return '';
   },
 
+  _buildComponentUpdatePanel: function (container, cpuArch) {
+    var self = this;
+    this._compCpuArch = cpuArch || '';
+    this._compVariant = this._compVariant || {};
+    this._compLatest = this._compLatest || {};
+    var listEl = E('div', { 'class': 'cl-component-list' });
+    var logEl = E('div', { 'class': 'cl-component-log' }, '正在读取组件状态...');
+    var archWrap = E('div', { 'class': 'cl-component-arch' });
+    this._compArchWrap = archWrap;
+    var refreshBtn = E('button', {
+      'class': 'btn cbi-button cbi-button-neutral',
+      click: function (ev) {
+        ev.preventDefault();
+        self._refreshComponentUpdatePanel(listEl, logEl, true);
+      }
+    }, '刷新');
+
+    container.appendChild(E('div', { 'class': 'cl-section cl-card cl-component-card' }, [
+      E('div', { 'class': 'cl-component-head' }, [
+        E('div', {}, [
+          E('h4', {}, '组件更新'),
+          E('div', { 'class': 'cl-component-sub' }, '按组件单独更新，便于定位失败。点「刷新」检查最新版本。')
+        ]),
+        refreshBtn
+      ]),
+      archWrap,
+      listEl,
+      logEl
+    ]));
+
+    this._refreshComponentUpdatePanel(listEl, logEl, false);
+  },
+
+  _replaceChildren: function (node, children) {
+    while (node.firstChild)
+      node.removeChild(node.firstChild);
+    children.forEach(function (child) { if (child) node.appendChild(child); });
+  },
+
+  _componentStatusText: function (comp, globalRunning) {
+    if (comp.status === 'running')
+      return comp.message || '更新中';
+    if (comp.status === 'success')
+      return comp.message || '已完成';
+    if (comp.status === 'failed')
+      return comp.message || '失败';
+    if (globalRunning)
+      return '等待当前任务完成';
+    return '空闲';
+  },
+
+  /* CPU 架构行：自动检测 + 可手动覆盖（写 download_core UCI，内核下载共用此值）*/
+  _renderComponentArchRow: function (arch) {
+    var self = this;
+    arch = arch || {};
+    var sys = arch.system || '未知';
+    var detected = this._detectMihomoArch(this._compCpuArch || sys) || '';
+    var cur = arch.download_core || detected || 'amd64';
+    var archList = ['amd64', 'arm64', 'armv7', 'armv6', 'armv5', '386', 'mips', 'mipsle', 'mips64', 'mips64le'];
+    var sel = E('select', { 'class': 'cl-component-arch-sel' },
+      archList.map(function (a) {
+        return E('option', { value: a, selected: a === cur ? '' : null }, a);
+      }));
+    sel.addEventListener('change', function () {
+      uci.set('clashoo', 'config', 'download_core', sel.value);
+      uci.save()
+        .then(function () { return clashoo.commitConfig(); })
+        .then(function () { return clearClashooDirty(); })
+        .then(function () { clashoo.toast('处理器架构已设为 ' + sel.value, { kind: 'info' }); })
+        .catch(function () {});
+    });
+    return E('div', { 'class': 'cl-component-arch-row' }, [
+      E('span', { 'class': 'cl-component-arch-label' }, '处理器架构'),
+      sel,
+      E('span', { 'class': 'cl-component-arch-hint' },
+        '系统 ' + sys + (detected ? '  →  推荐 ' + detected : ''))
+    ]);
+  },
+
+  _renderComponentRow: function (comp, globalRunning, latestMap, listEl, logEl) {
+    var self = this;
+    var statusText = this._componentStatusText(comp, globalRunning);
+    var inst = comp.installed_version || '';
+    var instStable = /^v?[0-9]/.test(inst);
+
+    /* mihomo / sing-box：行内稳定 / Alpha 切换 */
+    var variant = '';
+    var variantBox = null;
+    if (comp.variant) {
+      if (!self._compVariant[comp.id])
+        self._compVariant[comp.id] = instStable ? 'stable' : 'alpha';
+      variant = self._compVariant[comp.id];
+      var mkV = function (v, label) {
+        var b = E('button', { 'class': 'cl-comp-var' + (variant === v ? ' on' : '') }, label);
+        b.addEventListener('click', function (ev) {
+          ev.preventDefault();
+          self._compVariant[comp.id] = v;
+          self._refreshComponentUpdatePanel(listEl, logEl, false);
+        });
+        return b;
+      };
+      variantBox = E('div', { 'class': 'cl-comp-var-box' }, [mkV('stable', '稳定'), mkV('alpha', 'Alpha')]);
+    }
+
+    /* 绿色「可更新」徽标：版本型组件，最新版与已装不同时显示。
+       两边去掉前导 v 再比（sing-box -v 不带 v，GitHub tag 带 v）*/
+    var badge = null;
+    var latest = latestMap[comp.id];
+    if (latest && inst && inst !== '未安装') {
+      var checkable = comp.kind === 'pkg' || (comp.variant && variant === 'stable' && instStable);
+      var norm = function (s) { return String(s).replace(/^v/i, ''); };
+      if (checkable && norm(latest) !== norm(inst))
+        badge = E('span', { 'class': 'cl-comp-updatable' }, '可更新');
+    }
+
+    var btn = E('button', {
+      'class': 'btn cbi-button cbi-button-apply',
+      disabled: globalRunning ? 'disabled' : null,
+      click: function (ev) {
+        ev.preventDefault();
+        btn.disabled = true;
+        btn.textContent = '提交中';
+        clashoo.componentUpdate(comp.id, variant).then(function (res) {
+          if (res && res.success)
+            clashoo.toast('组件更新任务已提交', { kind: 'info' });
+          else
+            clashoo.toast((res && res.message) || '组件更新任务提交失败', { kind: 'error' });
+          setTimeout(function () { self._refreshComponentUpdatePanel(listEl, logEl, false); }, 700);
+        });
+      }
+    }, comp.status === 'running' ? '更新中' : '更新');
+
+    var verChildren = [E('span', {}, '当前：' + (inst || '未知') + ' ')];
+    if (badge) verChildren.push(badge);
+    var verBlock = [E('div', {}, verChildren)];
+    if (variantBox) verBlock.push(variantBox);
+
+    return E('div', { 'class': 'cl-component-row' }, [
+      E('div', {}, [
+        E('div', { 'class': 'cl-component-name' }, comp.name || comp.id),
+        E('div', { 'class': 'cl-component-desc' }, comp.description || '')
+      ]),
+      E('div', { 'class': 'cl-component-version' }, verBlock),
+      E('div', { 'class': 'cl-component-status ' + (comp.status || 'idle') }, statusText),
+      btn
+    ]);
+  },
+
+  _refreshComponentUpdatePanel: function (listEl, logEl, doCheck) {
+    var self = this;
+    if (this._componentPollTimer) {
+      clearTimeout(this._componentPollTimer);
+      this._componentPollTimer = null;
+    }
+
+    clashoo.componentStatus().then(function (data) {
+      var comps = data.components || [];
+      if (self._compArchWrap)
+        self._replaceChildren(self._compArchWrap, [self._renderComponentArchRow(data.arch)]);
+
+      var paint = function () {
+        self._replaceChildren(listEl, comps.map(function (comp) {
+          return self._renderComponentRow(comp, !!data.running, self._compLatest || {}, listEl, logEl);
+        }));
+      };
+      paint();
+      logEl.textContent = data.log || data.last_log || '暂无组件更新日志';
+
+      if (data.running) {
+        self._componentPollTimer = setTimeout(function () {
+          self._refreshComponentUpdatePanel(listEl, logEl, false);
+        }, 2000);
+      } else if (doCheck) {
+        clashoo.componentCheckUpdates().then(function (r) {
+          self._compLatest = (r && r.latest) || {};
+          paint();
+        });
+      }
+    });
+  },
+
   _buildKernelPanel: function (container, cpuArch) {
     var self = this;
     var detectedArch = this._detectMihomoArch(cpuArch);
@@ -304,224 +510,6 @@ return view.extend({
     o.value('mihomo', 'mihomo（Clash Meta 内核）');
     o.value('singbox', 'sing-box（需已安装并启用 clash_api）');
     o.description = '';
-
-    s = m.section(form.NamedSection, 'config', 'clashoo', '内核下载');
-    s.addremove = false;
-    o = s.option(form.ListValue, 'dcore', '版本类型');
-    o.value('1', 'mihomo（Smart 版）');
-    o.value('2', 'mihomo（稳定版）'); o.value('3', 'mihomo（Alpha 版）');
-    o.value('4', 'sing-box（稳定版）'); o.value('5', 'sing-box（Alpha 版）');
-    o = s.option(form.ListValue, 'download_core', 'CPU 架构');
-    ['amd64','arm64','armv7','armv6','armv5','386','mips','mipsle','mips64','mips64le'].forEach(function(a){ o.value(a,a); });
-    if (detectedArch) o.default = detectedArch;
-    o.description = '';
-    o = s.option(form.DummyValue, '_arch_badge', '架构建议');
-    o.cfgvalue = function () {
-      var sys = cpuArch || '未知';
-      var rec = detectedArch || '手动选择';
-      return E('div', { 'class': 'cl-arch-badge-row' }, [
-        E('span', { 'class': 'cl-arch-badge cl-arch-badge-sys' }, '系统架构 ' + sys),
-        E('span', { 'class': 'cl-arch-arrow' }, '→'),
-        E('span', { 'class': 'cl-arch-badge cl-arch-badge-rec' }, '推荐下载 ' + rec)
-      ]);
-    };
-    o.write = function () {};
-    o = s.option(form.ListValue, 'core_mirror_prefix', '镜像源');
-    o.value('', 'GitHub 直连'); o.value('https://gh-proxy.com/', 'GHProxy');
-    o = s.option(form.DummyValue, '_dl_btn', '');
-    o.cfgvalue = function () {
-      var origText = '下载内核';
-      var dlBtn = E('button', {
-        'class': 'btn cbi-button-action cl-dl-core-btn',
-        'data-cl-orig-text': origText
-      }, origText);
-      var dlHint = E('div', { 'class': 'cl-update-status cl-dl-hint' }, '');
-
-      /* 取日志最后一行，去掉时间戳和缩进，留下短描述 */
-      var lastLogLine = function (log) {
-        if (!log) return '';
-        var lines = String(log).split('\n');
-        for (var i = lines.length - 1; i >= 0; i--) {
-          var s = lines[i].trim();
-          if (s) return s.replace(/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\s*-\s*/, '');
-        }
-        return '';
-      };
-
-      /* 实时从 DOM 拿元素（form.Map 重渲染后闭包引用会失效） */
-      var liveBtn  = function () { return document.querySelector('.cl-dl-core-btn') || dlBtn; };
-      var liveHint = function () { return document.querySelector('.cl-dl-hint')     || dlHint; };
-      var coreTypeLabel = function (v) {
-        switch (String(v || '')) {
-        case '1': return 'mihomo Smart 版';
-        case '2': return 'mihomo 稳定版';
-        case '3': return 'mihomo Alpha 版';
-        case '4': return 'sing-box 稳定版';
-        case '5': return 'sing-box Alpha 版';
-        default:  return '内核';
-        }
-      };
-      var selectedCoreLabel = function () {
-        var e = document.querySelector('select[id$=".dcore"]');
-        return coreTypeLabel(e ? e.value : (uci.get('clashoo', 'config', 'dcore') || '2'));
-      };
-      var activeCoreLabel = selectedCoreLabel();
-      var withCoreLabel = function (msg) {
-        msg = msg || '';
-        if (!msg) return '';
-        if (/^通道：/.test(msg))
-          return msg.replace(/^通道：/, '');
-        if (msg.indexOf(activeCoreLabel + '：') === 0)
-          return msg;
-        return activeCoreLabel + '：' + msg;
-      };
-      var setHint = function (text, tone) {
-        var h = liveHint();
-        h.textContent = text || '';
-        h.style.color = tone === 'success' ? 'var(--success-color, #2e7d32)'
-                    : tone === 'error'   ? 'var(--error-color, #d32f2f)'
-                    : tone === 'progress'? 'var(--tip-color, #1976d2)'
-                    : '';
-      };
-      var compactCoreLog = function (line) {
-        var msg = clashoo.localizeLogLine(lastLogLine(line));
-        if (!msg) return '';
-        if (/内核下载任务已触发/.test(msg)) return '任务已提交';
-        if (/内核下载任务启动/.test(msg)) return '正在准备下载';
-        if (/^下载架构：/.test(msg)) return msg.replace(/^下载架构：/, '架构：');
-        if (/^已选择内核通道：mihomo Smart/.test(msg)) return '通道：mihomo Smart 版';
-        if (/^已选择内核通道：稳定版/.test(msg)) return '通道：mihomo 稳定版';
-        if (/^已选择内核通道：预发布版/.test(msg)) return '通道：mihomo Alpha 版';
-        if (/^已选择 sing-box 稳定版/.test(msg)) return '通道：sing-box 稳定版';
-        if (/^已选择 sing-box 预发布版/.test(msg)) return '通道：sing-box Alpha 版';
-        if (/GitHub Release/.test(msg) || /版本号/.test(msg)) return '正在获取版本信息';
-        if (/^版本标签：/.test(msg)) return msg.replace(/^版本标签：/, '版本：');
-        if (/^匹配内核文件：/.test(msg)) return '已匹配内核文件';
-        if (/^开始下载内核/.test(msg)) return '正在下载内核';
-        if (/^Downloading from /.test(msg)) return '正在下载文件';
-        if (/invalid gzip|file is empty/i.test(msg)) return '镜像文件异常，切换源';
-        if (/OpenWrt APK 包/.test(msg)) return '尝试 OpenWrt APK 包';
-        if (/OpenWrt IPK 包/.test(msg)) return '尝试 OpenWrt IPK 包';
-        if (/sing-box 归档包/.test(msg)) return '尝试 sing-box 归档包';
-        if (/Smart 内核已就绪/.test(msg)) return 'Smart 内核已就绪';
-        if (/内核已替换，重启 Clashoo/.test(msg)) return '内核已替换，正在重启';
-        if (/内核更新完成|sing-box 更新完成/.test(msg)) return msg.replace(/^sing-box 更新完成:/, 'sing-box 更新完成：');
-        if (/未找到对应架构的内核文件/.test(msg)) return '未找到对应架构的内核文件';
-        if (/所有镜像源均不可达/.test(msg)) return '内核下载失败：镜像不可达';
-        if (/自定义镜像前缀/.test(msg)) return '可尝试更换镜像源';
-        return msg.length > 36 ? (msg.slice(0, 34) + '…') : msg;
-      };
-      var coreLogFailed = function (log) {
-        return /失败|错误|error|failed|invalid|incomplete|not found|未找到|不可达/i.test(log || '');
-      };
-
-      var stopPoll = function () {
-        if (self._coreDlTimer) { clearInterval(self._coreDlTimer); self._coreDlTimer = null; }
-      };
-      var resetAfter = function (btnText, hintText, ms) {
-        var b = liveBtn();
-        var failed = /失败|错误|不可达|未找到|failed|error/i.test(hintText || btnText);
-        var hint = hintText || '';
-        b.textContent = btnText;
-        if (hint && !/^[✓✗ℹ⏳]/.test(hint))
-          hint = (failed ? '✗ ' : '✓ ') + hint;
-        setHint(hint, failed ? 'error' : 'success');
-        setTimeout(function () {
-          var b2 = liveBtn();
-          b2.disabled = false;
-          b2.textContent = b2.getAttribute('data-cl-orig-text') || origText;
-          setHint('');
-        }, ms || 5000);
-      };
-      var smartDownload = false; /* 由点击逻辑标记，下载完成时决定要不要自动重启 */
-      var pollOnce = function () {
-        return clashoo.getLogStatus().then(function (st) {
-          if (!st) return;
-          var b = liveBtn();
-          if (st.core_updating) {
-            b.disabled = true;
-            b.textContent = '下载中…';
-            setHint('⏳ ' + withCoreLabel(compactCoreLog(st.core_log) || '正在下载内核...'), 'progress');
-            return;
-          }
-          stopPoll();
-          var tail = withCoreLabel(compactCoreLog(st.core_log || '') || '内核下载完成');
-          var failed = coreLogFailed(st.core_log || '') && !/完成|updated|success/i.test(tail);
-          if (failed) {
-            resetAfter('下载失败', tail || '内核下载失败');
-            return;
-          }
-          /* Smart 内核：下载完成后自动重启服务让新二进制生效 */
-          if (smartDownload) {
-            smartDownload = false;
-            liveBtn().textContent = '重启服务…';
-            setHint('⏳ 应用 Smart 内核中...', 'progress');
-            clashoo.restart().then(function () {
-              resetAfter('已应用 ✓', 'Smart 内核已替换并重启');
-            }).catch(function () {
-              resetAfter('下载完成 ✓', (tail || '内核下载完成') + '，重启失败');
-            });
-            return;
-          }
-          resetAfter('下载完成 ✓', tail || '内核下载完成');
-        }).catch(function () {});
-      };
-      var startPolling = function () {
-        stopPoll();
-        pollOnce();
-        self._coreDlTimer = setInterval(pollOnce, 1500);
-      };
-
-      dlBtn.addEventListener('click', function () {
-        var b = liveBtn();
-        b.disabled = true;
-        b.textContent = '保存中…';
-        setHint('');
-        /* 从 DOM 直接读下拉值，不依赖 uci.get 缓存 */
-        var dv = function (o) {
-                  var e = document.querySelector('select[id$=".' + o + '"]');
-                  return e ? e.value : '';
-        };
-        var dc = dv('dcore') || '2';
-        var ac = dv('download_core') || '';
-        activeCoreLabel = coreTypeLabel(dc);
-        smartDownload = (String(dc) === '1');
-        m.save()
-          .then(function () { return clashoo.commitConfig(); })
-          .then(function () {
-            if (smartDownload) {
-                    uci.set('clashoo', 'config', 'smart_auto_switch', '1');
-                    return uci.save().then(function () { return clashoo.commitConfig(); });
-            }
-          })
-          .then(function () { return clashoo.clearUpdateLog(); })
-          .then(function () {
-            liveBtn().textContent = '下载中…';
-            setHint('⏳ ' + withCoreLabel('正在启动下载...'), 'progress');
-            return clashoo.downloadCore(dc, ac);
-          })
-          .then(function () { return clearClashooDirty(); })
-          .then(function () { startPolling(); })
-          .catch(function (e) {
-            resetAfter('启动失败', e.message || String(e));
-            ui.addNotification(null, E('p', '启动下载失败: ' + (e.message || e)));
-          });
-      });
-
-      /* 进入页面时若已有任务在跑，恢复"下载中"状态并接管轮询 */
-      clashoo.getLogStatus().then(function (st) {
-        if (st && st.core_updating) {
-          activeCoreLabel = selectedCoreLabel();
-          startPolling();
-        }
-      }).catch(function () {});
-
-      return E('div', { 'class': 'cl-btn-ver-wrap' }, [
-        E('div', { style: 'display:flex;align-items:center;gap:10px;flex-wrap:wrap' }, [dlBtn]),
-        dlHint
-      ]);
-    };
-    o.write = function () {};
 
     s = m.section(form.NamedSection, 'config', 'clashoo', 'GeoIP 与 GeoSite');
     s.addremove = false;
