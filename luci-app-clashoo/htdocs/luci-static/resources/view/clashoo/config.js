@@ -118,6 +118,7 @@ var CSS = [
 var callListSubs      = rpc.declare({ object: 'luci.clashoo', method: 'list_subscriptions',  expect: {} });
 var callListDir       = rpc.declare({ object: 'luci.clashoo', method: 'list_dir_files',      params: ['type'], expect: {} });
 var callDownloadSubs  = rpc.declare({ object: 'luci.clashoo', method: 'download_subs',       expect: {} });
+var callDownloadSubsStatus = rpc.declare({ object: 'luci.clashoo', method: 'download_subs_status', expect: {} });
 var callUpdateSub     = rpc.declare({ object: 'luci.clashoo', method: 'update_sub',          params: ['name'], expect: {} });
 var callSetConfig     = rpc.declare({ object: 'luci.clashoo', method: 'set_config',          params: ['name'], expect: {} });
 var callDeleteCfg     = rpc.declare({ object: 'luci.clashoo', method: 'delete_config',       params: ['name', 'type'], expect: {} });
@@ -506,9 +507,56 @@ return view.extend({
 
     var uaPicker = buildUaPicker(savedUa);
 
+    var dlStatusEl = E('div', { 'class': 'cl-update-status', style: 'margin-top:6px;font-size:12px;min-height:18px;line-height:1.4' });
+    var setDlStatus = function (text, tone) {
+      dlStatusEl.textContent = text || '';
+      dlStatusEl.style.color = tone === 'success' ? 'var(--success-color, #2e7d32)'
+                             : tone === 'error'   ? 'var(--error-color, #d32f2f)'
+                             : tone === 'progress'? 'var(--tip-color, #1976d2)'
+                             : '';
+    };
+    var stopDlPoll = function () {
+      if (self._subDlTimer) { clearInterval(self._subDlTimer); self._subDlTimer = null; }
+    };
+
     var dlBtn = E('button', {
       'class': 'btn cbi-button-action cl-btn-sm',
       click: function () {
+        if (!urlInput.value.trim()) {
+          setDlStatus('✗ 请先填写订阅链接', 'error');
+          setTimeout(function () { setDlStatus(''); }, 4000);
+          return;
+        }
+        stopDlPoll();
+        dlBtn.disabled = true;
+        dlBtn.textContent = '下载中…';
+        setDlStatus('⏳ 正在提交下载任务...', 'progress');
+
+        var pollCount = 0;
+        var pollDl = function () {
+          pollCount++;
+          callDownloadSubsStatus().then(function (st) {
+            st = st || {};
+            var raw  = st.last_line || '';
+            var line = clashoo.localizeLogLine(raw);
+            if (st.running) {
+              setDlStatus('⏳ ' + (line || '正在下载订阅...'), 'progress');
+              return;
+            }
+            /* 进程结束但日志还空 → 后台 sh 可能尚未就绪，前几次宽限不判定 */
+            if (!raw && pollCount < 4) return;
+            stopDlPoll();
+            /* 收尾行只有三种：「订阅下载完成：成功 N 个，失败 M 个」=成功（含"失败 0 个"
+               字样，不能按"失败"判负）；「订阅下载失败：全部链接失败」「未找到订阅链接」=失败 */
+            var ok = /下载完成|completed/i.test(raw);
+            dlBtn.disabled = false;
+            dlBtn.textContent = '下载订阅';
+            setDlStatus((ok ? '✓ ' : '✗ ') + (line || (ok ? '订阅下载完成' : '订阅下载失败')),
+                        ok ? 'success' : 'error');
+            setTimeout(function () { location.reload(); }, 1200);
+          }).catch(function () {});
+        };
+
         L.resolveDefault(uci.load('clashoo'), null)
           .then(function () {
             uci.set('clashoo', 'config', 'subscribe_url', urlInput.value);
@@ -520,8 +568,15 @@ return view.extend({
           .then(function () { return clearClashooDirty(); })
           .then(function () { return L.resolveDefault(callDownloadSubs(), {}); })
           .then(function (r) {
-            ui.addNotification(null, E('p', r.success ? '下载成功' : '下载失败: ' + (r.message || '')));
-            location.reload();
+            if (r && r.running) setDlStatus('⏳ 已有下载任务进行中...', 'progress');
+            self._subDlTimer = setInterval(pollDl, 2000);
+            setTimeout(pollDl, 800);
+          })
+          .catch(function (e) {
+            stopDlPoll();
+            dlBtn.disabled = false;
+            dlBtn.textContent = '下载订阅';
+            setDlStatus('✗ 启动失败: ' + (e && e.message || e), 'error');
           });
       }
     }, '下载订阅');
@@ -751,7 +806,7 @@ return view.extend({
     var sections = [
       E('div', { 'class': 'cl-section cl-card' }, [
         E('h4', {}, '订阅链接'),
-        E('div', { 'class': 'cl-form-wrap cl-fixed-600' }, [urlInput, nameInput, uaPicker.wrap, dlBtn])
+        E('div', { 'class': 'cl-form-wrap cl-fixed-600' }, [urlInput, nameInput, uaPicker.wrap, dlBtn, dlStatusEl])
       ]),
       E('div', { 'class': 'cl-section cl-card' }, [
         E('h4', {}, '已下载订阅'),
@@ -1445,6 +1500,14 @@ return view.extend({
     });
 
     var fetchBtn, fetchApplyBtn;
+    var fetchStatusEl = E('div', { 'class': 'cl-update-status', style: 'margin-top:6px;font-size:12px;min-height:18px;line-height:1.4' });
+    var setFetchStatus = function (text, tone) {
+      fetchStatusEl.textContent = text || '';
+      fetchStatusEl.style.color = tone === 'success' ? 'var(--success-color, #2e7d32)'
+                                : tone === 'error'   ? 'var(--error-color, #d32f2f)'
+                                : tone === 'progress'? 'var(--tip-color, #1976d2)'
+                                : '';
+    };
     function setNativeBusy(busy) {
       [fetchBtn, fetchApplyBtn].forEach(function (b) {
         if (!b) return;
@@ -1459,31 +1522,37 @@ return view.extend({
     }
     function doFetchNative(setActive) {
       var url = nativeUrlInput.value.trim();
-      if (!url) { ui.addNotification(null, E('p', '请填写订阅链接')); return; }
+      if (!url) {
+        setFetchStatus('✗ 请填写订阅链接', 'error');
+        setTimeout(function () { setFetchStatus(''); }, 4000);
+        return;
+      }
       setNativeBusy(true);
+      setFetchStatus('⏳ 正在拉取配置...', 'progress');
       clashoo.fetchSingboxNative(url, nativeNameInput.value.trim())
         .then(function (r) {
           setNativeBusy(false);
           if (!r || typeof r.success === 'undefined') {
-            ui.addNotification(null, E('p', '拉取超时，请刷新页面查看结果'));
+            setFetchStatus('⏳ 拉取超时，正在刷新查看结果...', 'progress');
             setTimeout(function () { location.reload(); }, 1500);
             return;
           }
           if (!r.success) {
-            ui.addNotification(null, E('p', '拉取失败: ' + (r.message || '')));
+            setFetchStatus('✗ 拉取失败: ' + (r.message || ''), 'error');
             return;
           }
           if (setActive) {
+            setFetchStatus('⏳ ' + r.message + '，正在切换为活动配置...', 'progress');
             return clashoo.setSingboxProfile(r.name).then(function () {
-              ui.addNotification(null, E('p', r.message + '，已切换为活动配置'));
-              location.reload();
+              setFetchStatus('✓ ' + r.message + '，已切换为活动配置', 'success');
+              setTimeout(function () { location.reload(); }, 1200);
             });
           }
-          ui.addNotification(null, E('p', r.message));
-          location.reload();
+          setFetchStatus('✓ ' + r.message, 'success');
+          setTimeout(function () { location.reload(); }, 1200);
         }).catch(function (e) {
           setNativeBusy(false);
-          ui.addNotification(null, E('p', '拉取异常: ' + (e && e.message || e)));
+          setFetchStatus('✗ 拉取异常: ' + (e && e.message || e), 'error');
         });
     }
 
@@ -1495,7 +1564,8 @@ return view.extend({
         E('h4', {}, '节点订阅'),
         E('div', { 'class': 'cl-form-wrap cl-fixed-600 cl-sb-form' }, [
           nativeUrlInput, nativeNameInput,
-          E('div', { 'class': 'cl-actions cl-sb-top-actions' }, [fetchBtn, fetchApplyBtn])
+          E('div', { 'class': 'cl-actions cl-sb-top-actions' }, [fetchBtn, fetchApplyBtn]),
+          fetchStatusEl
         ]),
         E('p', { 'class': 'cl-sb-note' },
           '适用于机场直接提供 sing-box JSON 格式订阅、或已用外部工具转换好的链接。\n' +
