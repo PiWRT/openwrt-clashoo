@@ -54,6 +54,13 @@ var CSS = [
   '.cl-component-card{padding:16px;border:1px solid rgba(128,128,128,.18);border-radius:10px;background:rgba(128,128,128,.05);margin-bottom:18px}',
   '.cl-component-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}',
   '.cl-component-head h4{margin:0 0 4px;font-size:14px;font-weight:700;color:var(--title-color,inherit);background:transparent !important;padding:0}',
+  '.cl-component-adv{margin-top:10px}',
+  '.cl-component-adv-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer;user-select:none;font-size:13px;font-weight:700;background:rgba(128,128,128,.06);border-radius:8px}',
+  '.cl-component-adv-bar:hover{background:rgba(128,128,128,.1)}',
+  '.cl-component-adv-chevron{font-size:16px;font-weight:700;opacity:.55;transition:transform .2s}',
+  '.cl-component-adv:not(.cl-closed) .cl-component-adv-chevron{transform:rotate(90deg)}',
+  '.cl-component-adv-body{margin-top:8px}',
+  '.cl-component-adv.cl-closed .cl-component-adv-body{display:none}',
   '.cl-component-sub{font-size:12px;color:rgba(120,130,150,.9);line-height:1.45}',
   '.cl-component-list{display:grid;gap:8px}',
   '.cl-component-row{display:grid;grid-template-columns:minmax(170px,1.1fr) minmax(180px,1.5fr) minmax(130px,.9fr) auto;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgba(128,128,128,.14);border-radius:8px;background:rgba(128,128,128,.045)}',
@@ -62,9 +69,9 @@ var CSS = [
   '.cl-component-version{font-size:12px;line-height:1.45;color:rgba(90,100,120,.95);word-break:break-word}',
   '.cl-theme-dark .cl-component-version{color:rgba(210,220,235,.86)}',
   '.cl-component-status{font-size:12px;line-height:1.45;color:rgba(90,100,120,.95)}',
-  '.cl-component-status.running{color:#2f80ed}.cl-component-status.success{color:#239b56}.cl-component-status.failed{color:#d43f3a}',
-  '.cl-component-log{margin-top:10px;font-family:monospace;font-size:11px;white-space:pre-wrap;max-height:140px;overflow:auto;padding:9px;border-radius:8px;background:rgba(128,128,128,.08);color:rgba(90,100,120,.95)}',
-  '.cl-theme-dark .cl-component-log{color:rgba(220,225,235,.85)}',
+  '.cl-component-status.cl-st-running{color:#2f80ed}.cl-component-status.cl-st-success{color:#239b56}.cl-component-status.cl-st-failed{color:#d43f3a}',
+  '.cl-component-log{margin-top:10px;font-family:monospace;font-size:11px;white-space:pre-wrap;max-height:140px;overflow:auto;padding:9px;border-radius:8px;background:rgba(128,128,128,.08);color:#4a8c63}',
+  '.cl-theme-dark .cl-component-log{color:#a3d9ad}',
   '.cl-component-arch{margin-bottom:12px}',
   '.cl-component-arch-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 12px;border:1px solid rgba(128,128,128,.14);border-radius:8px;background:rgba(128,128,128,.045)}',
   '.cl-component-arch-label{font-size:13px;font-weight:700}',
@@ -85,6 +92,9 @@ var CSS = [
   '.cl-wrap .cbi-input-text,.cl-wrap .cbi-input-select,.cl-wrap select,.cl-wrap input,.cl-wrap textarea,.cl-wrap .btn,.cl-wrap .cbi-button{font-size:13px !important;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif !important}',
   '.cl-wrap .btn,.cl-wrap .cbi-button{padding:4px 10px;line-height:1.35}'
 ].join('');
+
+/* 组件更新：主区只显示 clashoo / 客户端，其余收进「高级设置」折叠面板 */
+var COMPONENT_MAIN_IDS = { clashoo: true, luci: true };
 
 function fastResolve(promise, timeoutMs, fallback) {
   var t = new Promise(function (resolve) {
@@ -323,6 +333,8 @@ return view.extend({
     this._compVariant = this._compVariant || {};
     this._compLatest = this._compLatest || {};
     var listEl = E('div', { 'class': 'cl-component-list' });
+    var advListEl = E('div', { 'class': 'cl-component-list' });
+    this._compAdvListEl = advListEl;
     var logEl = E('div', { 'class': 'cl-component-log', style: 'display:none' }, '');
     this._compLogEl = logEl;
     var archWrap = E('div', { 'class': 'cl-component-arch' });
@@ -338,6 +350,19 @@ return view.extend({
     }, '检查更新');
     this._compRefreshBtn = refreshBtn;
 
+    /* 高级设置：内核 / 数据类组件，默认收起以免页面臃肿。
+       处理器架构常驻在外层 —— 它决定内核下载的二进制架构，不能藏 */
+    var advWrap = E('div', { 'class': 'cl-component-adv cl-closed' }, [
+      E('div', { 'class': 'cl-component-adv-bar' }, [
+        E('span', {}, '高级设置（内核 / 数据组件）'),
+        E('span', { 'class': 'cl-component-adv-chevron' }, '›')
+      ]),
+      E('div', { 'class': 'cl-component-adv-body' }, [advListEl])
+    ]);
+    advWrap.firstChild.addEventListener('click', function () {
+      advWrap.classList.toggle('cl-closed');
+    });
+
     container.appendChild(E('div', { 'class': 'cl-component-card' }, [
       E('div', { 'class': 'cl-component-head' }, [
         E('div', {}, [
@@ -348,6 +373,7 @@ return view.extend({
       ]),
       archWrap,
       listEl,
+      advWrap,
       logEl
     ]));
 
@@ -418,13 +444,19 @@ return view.extend({
         .then(function () { return clearClashooDirty(); })
         .then(function () { clashoo.toast('处理器架构已设为 ' + sel.value, { kind: 'info' }); })
         .catch(function () {});
+      /* 重画一行：与检测值不符时显示推荐提示 */
+      if (self._compArchWrap)
+        self._replaceChildren(self._compArchWrap,
+          [self._renderComponentArchRow({ system: sys, download_core: sel.value })]);
     });
-    return E('div', { 'class': 'cl-component-arch-row' }, [
+    var row = [
       E('span', { 'class': 'cl-component-arch-label' }, '处理器架构'),
-      sel,
-      E('span', { 'class': 'cl-component-arch-hint' },
-        '系统 ' + sys + (detected ? '  →  推荐 ' + detected : ''))
-    ]);
+      sel
+    ];
+    /* 自动检测正确时不显示提示，保持简洁；仅手动选了非检测值才提示推荐架构 */
+    if (detected && cur !== detected)
+      row.push(E('span', { 'class': 'cl-component-arch-hint' }, '推荐 ' + detected + '（按设备自动检测）'));
+    return E('div', { 'class': 'cl-component-arch-row' }, row);
   },
 
   _renderComponentRow: function (comp, globalRunning, latestMap, listEl, logEl) {
@@ -486,7 +518,7 @@ return view.extend({
         E('div', { 'class': 'cl-component-desc' }, comp.description || '')
       ]),
       E('div', { 'class': 'cl-component-version' }, verBlock),
-      E('div', { 'class': 'cl-component-status ' + (comp.status || 'idle') }, statusText),
+      E('div', { 'class': 'cl-component-status cl-st-' + (comp.status || 'idle') }, statusText),
       btn
     ]);
   },
@@ -504,9 +536,16 @@ return view.extend({
         self._replaceChildren(self._compArchWrap, [self._renderComponentArchRow(data.arch)]);
 
       var paint = function () {
-        self._replaceChildren(listEl, comps.map(function (comp) {
+        var mainComps = [], advComps = [];
+        comps.forEach(function (comp) {
+          (COMPONENT_MAIN_IDS[comp.id] ? mainComps : advComps).push(comp);
+        });
+        var render = function (comp) {
           return self._renderComponentRow(comp, !!data.running, self._compLatest || {}, listEl, logEl);
-        }));
+        };
+        self._replaceChildren(listEl, mainComps.map(render));
+        if (self._compAdvListEl)
+          self._replaceChildren(self._compAdvListEl, advComps.map(render));
       };
       paint();
       logEl.textContent = data.log || data.last_log || '暂无组件更新日志';
