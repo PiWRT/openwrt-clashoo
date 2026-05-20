@@ -653,14 +653,10 @@ return view.extend({
     s = m.section(form.NamedSection, 'config', 'clashoo', '自动化任务');
     s.addremove = false;
     o = s.option(form.Flag,  'auto_update',   '定时更新规则数据');
+    o.description = '规则数据包含：大陆白名单（直连 IP 段）与 GeoIP / GeoSite 地理库';
     o = s.option(form.Value, 'auto_update_time',   '更新间隔（小时）');
     o = s.option(form.Flag,  'auto_clear_log',    '定时清理日志');
     o = s.option(form.Value, 'clear_time','清理间隔（小时）');
-    o = s.option(form.Flag,  'auto_update_geoip',  '定时更新 GeoIP / GeoSite');
-    o = s.option(form.Value, 'auto_update_geoip_time', 'GeoIP 更新小时（0-23）');
-    o.depends('auto_update_geoip', '1');
-    o = s.option(form.Value, 'geoip_update_interval',  'GeoIP 更新间隔（天）');
-    o.depends('auto_update_geoip', '1');
     o = s.option(form.ListValue, 'geoip_source', 'GeoIP 数据源');
     o.value('2', 'GitHub'); o.value('4', '自定义');
 
