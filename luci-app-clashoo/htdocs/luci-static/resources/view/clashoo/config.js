@@ -549,10 +549,14 @@ return view.extend({
             /* 收尾行只有三种：「订阅下载完成：成功 N 个，失败 M 个」=成功（含"失败 0 个"
                字样，不能按"失败"判负）；「订阅下载失败：全部链接失败」「未找到订阅链接」=失败 */
             var ok = /下载完成|completed/i.test(raw);
+            /* 收尾行笼统，fail_detail 是带真因的失败行（rc=/HTTP/校验失败）：
+               全失败 → 直接显示真因；部分失败 → 收尾行后附上真因 */
+            var detail = st.fail_detail ? clashoo.localizeLogLine(st.fail_detail) : '';
+            var shown = ok ? (line + (detail ? ' · ' + detail : ''))
+                           : (detail || line || '订阅下载失败');
             dlBtn.disabled = false;
             dlBtn.textContent = '下载订阅';
-            setDlStatus((ok ? '✓ ' : '✗ ') + (line || (ok ? '订阅下载完成' : '订阅下载失败')),
-                        ok ? 'success' : 'error');
+            setDlStatus((ok ? '✓ ' : '✗ ') + shown, ok ? 'success' : 'error');
             setTimeout(function () { location.reload(); }, 1200);
           }).catch(function () {});
         };

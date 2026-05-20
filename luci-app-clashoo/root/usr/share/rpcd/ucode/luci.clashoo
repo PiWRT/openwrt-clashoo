@@ -2433,7 +2433,12 @@ let running = (line && line != '');
 let last_line = '';
 let p2 = popen('tail -1 /tmp/clash_update.txt 2>/dev/null');
 if (p2) { last_line = trim(p2.read('all')); p2.close(); }
-return { running, last_line };
+// 收尾行「订阅下载失败：全部链接失败」太笼统，额外捞最近一条带真因的
+// 失败行（下载失败 rc=/HTTP、校验失败 格式不符），让前端能显示具体原因
+let fail_detail = '';
+let p3 = popen("grep -aE '下载失败：.*(rc=|HTTP )|校验失败：' /tmp/clash_update.txt 2>/dev/null | tail -1");
+if (p3) { fail_detail = trim(p3.read('all')); p3.close(); }
+return { running, last_line, fail_detail };
 }
 },
 
