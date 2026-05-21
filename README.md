@@ -130,7 +130,13 @@ sing-box 二进制由用户按需安装，或通过「系统 → 内核下载」
 ### 一键安装
 
 ```bash
-wget -O - https://github.com/kenzok8/openwrt-clashoo/raw/refs/heads/main/scripts/install.sh | ash
+wget -O - https://raw.githubusercontent.com/kenzok8/openwrt-clashoo/refs/heads/main/scripts/install.sh | ash
+```
+
+大陆网络访问 GitHub 受限，可用镜像加速：
+
+```bash
+wget --no-check-certificate -O - https://ghfast.top/https://raw.githubusercontent.com/kenzok8/openwrt-clashoo/refs/heads/main/scripts/install.sh | ash
 ```
 
 ### Release 手动安装
@@ -158,7 +164,13 @@ make package/luci-app-clashoo/compile V=s
 ### 卸载
 
 ```bash
-wget -O - https://github.com/kenzok8/openwrt-clashoo/raw/refs/heads/main/scripts/uninstall.sh | ash
+wget -O - https://raw.githubusercontent.com/kenzok8/openwrt-clashoo/refs/heads/main/scripts/uninstall.sh | ash
+```
+
+大陆网络访问 GitHub 受限，可用镜像加速：
+
+```bash
+wget --no-check-certificate -O - https://ghfast.top/https://raw.githubusercontent.com/kenzok8/openwrt-clashoo/refs/heads/main/scripts/uninstall.sh | ash
 ```
 
 ---
