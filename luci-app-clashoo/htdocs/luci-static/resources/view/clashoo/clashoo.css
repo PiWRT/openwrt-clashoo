@@ -1502,7 +1502,7 @@ html[data-bs-theme="dark"] .cl-wrap .cl-live-num {
   border-radius: var(--border-radius, var(--cl-radius, 12px)) !important;
   box-shadow: var(--card-shadow, var(--cl-card-shadow)) !important;
   padding: 16px 18px !important;
-  margin: 0 14px 14px !important;
+  margin: 0 0 14px !important;
 }
 
 .cl-wrap.cl-config-page #cl-panel-subs .cl-section > h4,
