@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   get_current_info:
@@ -78,7 +79,9 @@ jobs:
           sed -i "s/PKG_SOURCE_VERSION:=.*/PKG_SOURCE_VERSION:=${{ needs.get_latest_info.outputs.commit_sha }}/" clashoo/Makefile
           sed -i "s/PKG_MIRROR_HASH:=.*/PKG_MIRROR_HASH:=${{ needs.get_latest_info.outputs.mirror_hash }}/" clashoo/Makefile
 
-      - name: Commit and push
+      - name: Commit, push and trigger release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -86,3 +89,5 @@ jobs:
           git diff --cached --quiet && { echo "No changes"; exit 0; }
           git commit -m "chore: bump mihomo to alpha-${{ needs.get_latest_info.outputs.short_sha }}"
           git push origin HEAD:main
+          # 新内核已推送，触发 release.yml 自动编译并发布
+          gh workflow run release.yml -f prerelease=false

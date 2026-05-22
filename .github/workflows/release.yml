@@ -328,7 +328,10 @@ jobs:
           key = ${B2_APPLICATION_KEY}
           hard_delete = true
           EOF
-          rclone copy feed/ "b2:${B2_BUCKET}/openwrt-feed/" \
+          # feed/ 为空时跳过，避免空目录把 B2 上已有产物全删
+          find feed -type f | grep -q . || { echo "feed empty, skip sync"; exit 0; }
+          # sync 而非 copy：B2 只保留本次最新产物，旧版本包同步删除
+          rclone sync feed/ "b2:${B2_BUCKET}/openwrt-feed/" \
             --checksum \
             --fast-list \
             --transfers 8 \
