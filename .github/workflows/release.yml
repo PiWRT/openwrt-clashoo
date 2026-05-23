@@ -46,6 +46,11 @@ jobs:
           PACKAGES: clashoo luci-app-clashoo
           NO_REFRESH_CHECK: true
           INDEX: 1
+          # 用稳定 dllkids key 签名（用户装一次公钥即永久信任）：
+          # KEY_BUILD = usign Ed25519 私钥，给 opkg Packages.gz 签名
+          # PRIVATE_KEY = ECDSA P-256 PEM 私钥，给 apk packages.adb 签名
+          KEY_BUILD: ${{ secrets.OPKG_KEY_BUILD }}
+          PRIVATE_KEY: ${{ secrets.APK_PRIVATE_KEY }}
 
       - name: Collect packages
         run: |
