@@ -120,10 +120,16 @@ build_sdk_candidates() {
   printf '%s\n' "$candidates"
 }
 
+# Feed 结构：<base>/<sdk>/<arch>/clashoo/<files>，clashoo 子目录是标准 apk/opkg feed 名
+feed_base_for() {
+  printf '%s/%s/%s/clashoo' "$B2_FEED_BASE_URL" "$1" "$2"
+}
+
 load_manifest_urls() {
   sdk="$1"
   arch="$2"
-  manifest_url="${B2_FEED_BASE_URL}/${sdk}/${arch}/manifest.txt"
+  base="$(feed_base_for "$sdk" "$arch")"
+  manifest_url="${base}/manifest.txt"
   manifest_text="$(fetch_text "$manifest_url" || true)"
   [ -n "$manifest_text" ] || return 1
 
@@ -134,17 +140,18 @@ load_manifest_urls() {
   [ -n "$core_file" ] || return 1
   [ -n "$luci_file" ] || return 1
 
-  CORE_URL="${B2_FEED_BASE_URL}/${sdk}/${arch}/${core_file}"
-  LUCI_URL="${B2_FEED_BASE_URL}/${sdk}/${arch}/${luci_file}"
+  CORE_URL="${base}/${core_file}"
+  LUCI_URL="${base}/${luci_file}"
   I18N_URL=""
-  [ -n "$i18n_file" ] && I18N_URL="${B2_FEED_BASE_URL}/${sdk}/${arch}/${i18n_file}"
+  [ -n "$i18n_file" ] && I18N_URL="${base}/${i18n_file}"
   return 0
 }
 
 load_opkg_feed_urls() {
   sdk="$1"
   arch="$2"
-  packages_url="${B2_FEED_BASE_URL}/${sdk}/${arch}/Packages.gz"
+  base="$(feed_base_for "$sdk" "$arch")"
+  packages_url="${base}/Packages.gz"
   packages_text="$(fetch_text "$packages_url" || true)"
   if ! printf '%s' "$packages_text" | grep -q '^Package: '; then
     return 1
@@ -157,10 +164,10 @@ load_opkg_feed_urls() {
   [ -n "$core_file" ] || return 1
   [ -n "$luci_file" ] || return 1
 
-  CORE_URL="${B2_FEED_BASE_URL}/${sdk}/${arch}/${core_file}"
-  LUCI_URL="${B2_FEED_BASE_URL}/${sdk}/${arch}/${luci_file}"
+  CORE_URL="${base}/${core_file}"
+  LUCI_URL="${base}/${luci_file}"
   I18N_URL=""
-  [ -n "$i18n_file" ] && I18N_URL="${B2_FEED_BASE_URL}/${sdk}/${arch}/${i18n_file}"
+  [ -n "$i18n_file" ] && I18N_URL="${base}/${i18n_file}"
   return 0
 }
 

@@ -72,8 +72,11 @@ jobs:
             cp -v "$f" "dist/feed/${safe}.apk"
           done
 
-          # Feed 索引（仅 feed）
-          for f in bin/packages/${ARCH}/clashoo/Packages* bin/packages/${ARCH}/clashoo/APKINDEX*; do
+          # Feed 索引（仅 feed）：opkg 用 Packages*，apk v2 用 APKINDEX.tar.gz，
+          # apk v3（OpenWrt 25.12+）用 packages.adb。三类都要捎上。
+          for f in bin/packages/${ARCH}/clashoo/Packages* \
+                   bin/packages/${ARCH}/clashoo/APKINDEX* \
+                   bin/packages/${ARCH}/clashoo/packages.adb*; do
             [ -f "$f" ] || continue
             cp -v "$f" dist/feed/
           done
@@ -284,7 +287,9 @@ jobs:
             name=$(basename "$dir")
             sdk=$(echo "$name" | sed 's/packages-sdk\([^-]*\)-.*/\1/')
             arch=$(echo "$name" | sed 's/packages-sdk[^-]*-//')
-            target="feed/${sdk}/${arch}"
+            # 标准 apk/opkg feed 结构：<sdk>/<arch>/<feedname>/<index+packages>
+            # feed 名取 clashoo，与 PACKAGES 一致；apk 仓库 URL 即此目录
+            target="feed/${sdk}/${arch}/clashoo"
             mkdir -p "$target"
             cp -v "$dir/feed/"* "$target/" 2>/dev/null || true
 
