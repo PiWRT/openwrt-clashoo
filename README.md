@@ -143,6 +143,22 @@ wget -O - https://raw.githubusercontent.com/kenzok8/openwrt-clashoo/refs/heads/m
 wget --no-check-certificate -O - https://ghfast.top/https://raw.githubusercontent.com/kenzok8/openwrt-clashoo/refs/heads/main/scripts/install.sh | ash
 ```
 
+### 持久软件源（推荐，跟 nikki/momo 一样自动跟版本）
+
+挂载 dllkids 软件源后，`opkg update` / `apk update` 就能自动拉到 clashoo 新版：
+
+```bash
+wget -qO- https://down.dllkids.xyz/openwrt-feed/openwrt-feed-setup.sh | sh
+```
+
+自动检测 SDK 版本（24.10 opkg / 25.12 apk）与架构，导入稳定签名公钥，写入 `customfeeds.conf` 或 `/etc/apk/repositories`。装好之后：
+
+```bash
+opkg update && opkg install clashoo luci-app-clashoo luci-i18n-clashoo-zh-cn
+# 或
+apk update && apk add clashoo luci-app-clashoo luci-i18n-clashoo-zh-cn
+```
+
 ### Release 手动安装
 
 ```bash
