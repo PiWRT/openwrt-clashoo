@@ -20,8 +20,17 @@ jobs:
           import base64, hashlib, subprocess
 
           with open('key-build') as f:
-              secret_b64 = f.read().strip()
+              secret_raw = f.read().strip()
+          # Handle both comment+key and bare key formats
+          lines = secret_raw.splitlines()
+          if len(lines) >= 2 and 'untrusted comment' in lines[0]:
+              secret_b64 = lines[1].strip()
+          else:
+              secret_b64 = lines[0].strip()
+          # Add padding if needed
+          secret_b64 += '=' * (-len(secret_b64) % 4)
           secret = base64.b64decode(secret_b64)
+          print(f"Secret decoded: {len(secret)} bytes")
           pubkey = secret[32:64]
 
           h = hashlib.sha512(pubkey).digest()
