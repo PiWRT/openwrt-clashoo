@@ -69,6 +69,7 @@ jobs:
           printf '%s\n' "$KEY_BUILD" > key-build
           printf '%s\n' "$PRIVATE_KEY" > private-key.pem
 
+          chmod -R a+w merged/
           git clone --depth 1 https://github.com/openwrt/gh-action-sdk.git sdk-action
           docker build -t openwrt-sdk-tools --build-arg ARCH=x86_64-openwrt-25.12 sdk-action
           docker run --rm --entrypoint bash \
