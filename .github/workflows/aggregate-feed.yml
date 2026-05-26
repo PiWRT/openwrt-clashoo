@@ -25,10 +25,12 @@ jobs:
           git clone --depth 1 https://github.com/openwrt/usign.git
           cd usign && cmake . && make -j$(nproc) && sudo cp usign /usr/local/bin/
 
-          # apk.static: Alpine package manager (for mkndx)
-          curl -fsSL -o apk.static \
-            "https://gitlab.alpinelinux.org/alpine/apk-tools/-/jobs/artifacts/master/raw/apk.static?job=static-x86_64"
-          [ -s apk.static ] && chmod +x apk.static && sudo mv apk.static /usr/local/bin/apk.static
+          # apk.static: extract from alpine Docker image
+          docker pull alpine:latest
+          docker create --name alpine-tmp alpine:latest
+          docker cp alpine-tmp:/sbin/apk.static /usr/local/bin/apk.static
+          docker rm alpine-tmp
+          chmod +x /usr/local/bin/apk.static
 
           # ipkg-make-index.sh
           curl -fsSL -o ipkg-make-index.sh \
