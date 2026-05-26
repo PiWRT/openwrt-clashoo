@@ -25,13 +25,9 @@ jobs:
           git clone --depth 1 https://github.com/openwrt/usign.git
           cd usign && cmake . && make -j$(nproc) && sudo cp usign /usr/local/bin/
 
-          # apk.static: download apk-tools-static from Alpine CDN and extract binary
-          ALPINE_VER="v3.21"
-          APKINDEX="https://dl-cdn.alpinelinux.org/alpine/${ALPINE_VER}/main/x86_64/APKINDEX.tar.gz"
-          PKG_VER=$(curl -fsSL "$APKINDEX" | tar xzO 2>/dev/null | awk '/^P:apk-tools-static$/{getline; if(/^V:/) print $2}' || echo "")
-          [ -n "$PKG_VER" ] || PKG_VER="2.14.10"
-          PKG_URL="https://dl-cdn.alpinelinux.org/alpine/${ALPINE_VER}/main/x86_64/apk-tools-static-${PKG_VER}.apk"
-          curl -fsSL "$PKG_URL" -o /tmp/apk-static.apk
+          # apk.static: use Alpine container to fetch the static package
+          docker run --rm alpine:latest sh -c 'apk update && apk fetch --stdout apk-tools-static' > /tmp/apk-static.apk
+          [ -s /tmp/apk-static.apk ] || { echo "Failed to download apk-tools-static"; exit 1; }
           tar xzf /tmp/apk-static.apk -C /tmp sbin/apk.static
           sudo cp /tmp/sbin/apk.static /usr/local/bin/apk.static
           sudo chmod +x /usr/local/bin/apk.static
