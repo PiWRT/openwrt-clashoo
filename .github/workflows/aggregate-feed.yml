@@ -34,7 +34,7 @@ jobs:
 
           # ipkg-make-index.sh
           curl -fsSL -o ipkg-make-index.sh \
-            "https://raw.githubusercontent.com/openwrt/openwrt/main/scripts/ipkg-make-index.sh"
+            "https://raw.githubusercontent.com/openwrt/openwrt/openwrt-24.10/scripts/ipkg-make-index.sh"
           chmod +x ipkg-make-index.sh && sudo mv ipkg-make-index.sh /usr/local/bin/
 
           # sha256: ipkg-make-index.sh needs this, symlink to sha256sum (both output <hash> <file>)
