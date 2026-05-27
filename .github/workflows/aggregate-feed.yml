@@ -77,10 +77,6 @@ jobs:
             -v "$PWD/private-key.pem":/keys/private-key.pem:ro \
             sdk-tools bash -c '
               set -eu
-              date > /work/debug.log 2>&1 || echo "CANNOT WRITE to /work/"
-              ls -la /work/ >> /work/debug.log 2>&1 || echo "CANNOT LS /work/"
-              echo "pre-setup done" >> /work/debug.log 2>&1
-
               mkdir -p /artifacts && chmod 777 /artifacts
               bash setup.sh
               export PATH="$PWD/staging_dir/host/bin:$PATH"
@@ -88,15 +84,27 @@ jobs:
                 printf "#!/bin/sh\nexec mkhash sha256 \"\$@\"\n" > "$PWD/staging_dir/host/bin/sha256"
                 chmod +x "$PWD/staging_dir/host/bin/sha256"
               fi
-
-              echo "post-setup done" >> /work/debug.log 2>&1
-              ls /work/ >> /work/debug.log 2>&1
+              SDK_DIR="$PWD"
+              for dir in /work/[0-9]*/*; do
+                [ -d "$dir" ] || continue
+                cd "$dir"
+                apk_count=$(ls ./*.apk 2>/dev/null | wc -l)
+                ipk_count=$(ls ./*.ipk 2>/dev/null | wc -l)
+                echo "==> $dir  APK=$apk_count IPK=$ipk_count"
+                if [ "$apk_count" -gt 0 ]; then
+                  rm -f packages.adb packages.adb.* APKINDEX*
+                  "$SDK_DIR/staging_dir/host/bin/apk" mkndx --allow-untrusted --sign-key /keys/private-key.pem --output packages.adb ./*.apk
+                  echo "  APK: packages.adb $(wc -c < packages.adb) bytes"
+                fi
+                if [ "$ipk_count" -gt 0 ]; then
+                  rm -f Packages Packages.gz Packages.sig
+                  "$SDK_DIR/scripts/ipkg-make-index.sh" . > Packages
+                  gzip -9nc Packages > Packages.gz
+                  "$SDK_DIR/staging_dir/host/bin/usign" -S -m Packages -s /keys/key-build
+                  echo "  IPK: Packages.gz $(wc -c < Packages.gz) bytes, signed"
+                fi
+              done
             '
-
-      - name: Show debug log
-        run: |
-          echo "=== Docker debug log ==="
-          cat merged/debug.log 2>/dev/null || echo "no debug.log found"
 
       - name: Prepare keys and upload
         env:
@@ -105,11 +113,8 @@ jobs:
           APK_PUB_KEY: ${{ secrets.APK_PUB_KEY }}
         run: |
           set -euo pipefail
-          echo "=== Sample directory contents ==="
-          ls -la merged/25.12/x86_64/ 2>/dev/null || true
-          ls -la merged/24.10/x86_64/ 2>/dev/null || true
-          echo "=== Index files ==="
-          find merged -name "packages.adb" -o -name "Packages.gz" -o -name "Packages.sig" | sort
+          echo "=== Index files generated ==="
+          find merged \( -name "packages.adb" -o -name "Packages.gz" -o -name "Packages.sig" \) | sort
           mkdir -p merged/keys
           printf '%s\n' "$OPKG_PUB_KEY" > merged/keys/dllkids-feed.pub
           printf '%s\n' "$APK_PUB_KEY" > merged/keys/dllkids-feed.pub.pem
