@@ -71,11 +71,11 @@ jobs:
 
           git clone --depth 1 https://github.com/openwrt/gh-action-sdk.git sdk-action
           docker build -t sdk-tools --build-arg ARCH=x86_64-openwrt-25.12 sdk-action
-          docker run --rm --user root \
+          docker run --rm --user root --entrypoint bash \
             -v "$PWD/merged":/work \
             -v "$PWD/key-build":/keys/key-build:ro \
             -v "$PWD/private-key.pem":/keys/private-key.pem:ro \
-            sdk-tools bash -c '
+            sdk-tools -c '
               set -eu
               mkdir -p /artifacts && chmod 777 /artifacts
               bash setup.sh
