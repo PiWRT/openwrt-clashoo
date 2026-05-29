@@ -125,7 +125,7 @@ wget -O - https://raw.githubusercontent.com/kenzok8/openwrt-clashoo/refs/heads/m
 wget --no-check-certificate -O - https://ghfast.top/https://raw.githubusercontent.com/kenzok8/openwrt-clashoo/refs/heads/main/scripts/install.sh | ash
 ```
 
-### Release 手动安装
+### 软件源安装
 
 在 OpenWrt 路由器上执行以下命令：
 
