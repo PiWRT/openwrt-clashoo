@@ -39,7 +39,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Build packages
-        uses: openwrt/gh-action-sdk@main
+        uses: kenzok8/gh-action-sdk@main
         env:
           ARCH: ${{ matrix.arch }}-openwrt-${{ matrix.sdk }}
           FEEDNAME: clashoo
