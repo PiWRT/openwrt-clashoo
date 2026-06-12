@@ -1980,6 +1980,8 @@ return { success: true, activated };
 update_panel: {
 args: { name: 'name' },
 call: function(req) {
+if (access('/var/run/panel_downloading', 'r'))
+return { success: false, busy: true, message: '面板正在下载' };
 let name = req.args?.name || 'zashboard';
 if (name != 'metacubexd' && name != 'yacd' && name != 'zashboard' && name != 'razord')
 name = 'zashboard';

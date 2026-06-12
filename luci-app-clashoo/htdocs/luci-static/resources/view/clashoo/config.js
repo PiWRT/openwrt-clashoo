@@ -201,7 +201,6 @@ function buildSubscriptionSchedule(uiData, initialStatus) {
 
   function syncScheduleState() {
     interval.disabled = !enabled.checked;
-    saveBtn.disabled = !enabled.checked;
   }
 
   enabled.addEventListener('change', syncScheduleState);

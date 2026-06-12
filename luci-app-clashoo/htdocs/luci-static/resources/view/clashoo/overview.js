@@ -655,22 +655,33 @@ return view.extend({
       }, 6000);
     };
 
-    var tries = 0;
+    var polls = 0;
     var poll = function () {
       clashoo.panelStatus().then(function (s) {
         s = s || {};
-        if (s.downloading && tries++ < 60) {
-          setTimeout(poll, 1200);
-          return;
-        }
         if (s.state === 'success') done('ok', '✓ ' + label + ' 已更新');
         else if (s.state === 'error') done('err', '✗ ' + (s.msg || '更新失败'));
-        else done('ok', '✓ ' + label + ' 已提交');
+        else if (polls++ >= 600) done('err', '✗ 面板更新超时');
+        else {
+          statusEl.textContent = s.msg || '正在下载…';
+          setTimeout(poll, 1200);
+        }
       });
     };
 
     clashoo.updatePanel(panel)
-      .then(function () { setTimeout(poll, 600); })
+      .then(function (r) {
+        if (r && r.busy) {
+          statusEl.textContent = r.message || '面板正在下载';
+          setTimeout(poll, 600);
+          return;
+        }
+        if (!r || r.success === false) {
+          done('err', '✗ ' + ((r && r.message) || '提交失败'));
+          return;
+        }
+        setTimeout(poll, 600);
+      })
       .catch(function () { done('err', '✗ 提交失败'); });
   },
 
