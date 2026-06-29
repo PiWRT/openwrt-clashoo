@@ -190,7 +190,7 @@ npx skills add kenzok8/openwrt-clashoo
 npx skills add kenzok8/openwrt-clashoo -a '*'
 ```
 
-技能源码在 [`skills/clashoo-user-guide/`](skills/clashoo-user-guide/)；其中 `references/` 与本仓库 Wiki 同源，由 CI 自动同步。
+技能源码在 [`.github/skills/clashoo-user-guide/`](.github/skills/clashoo-user-guide/)；其中 `references/` 与本仓库 Wiki 同源，由 CI 自动同步。
 
 ---
 

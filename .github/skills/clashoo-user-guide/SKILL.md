@@ -7,7 +7,7 @@ metadata:
 
 # Clashoo 专家指南
 
-Clashoo 是吴白（kenzok8）维护的 OpenWrt 代理管理插件，一个界面管三种内核：**mihomo（稳定/Alpha）、Smart、sing-box（稳定/Alpha）**。mihomo/Smart 走 YAML，sing-box 走 JSON，同一套 UCI 配置自动适配两端。
+Clashoo 是 kenzok8 维护的 OpenWrt 代理管理插件，一个界面管三种内核：**mihomo（稳定/Alpha）、Smart、sing-box（稳定/Alpha）**。mihomo/Smart 走 YAML，sing-box 走 JSON，同一套 UCI 配置自动适配两端。
 
 本指南分两层：
 - **本文件**：AI 排障要用、但用户向 Wiki 不该有的东西——系统架构、启动流程、防火墙/DNS 内部机制、日志报错解码、双内核内幕、排障方法论。

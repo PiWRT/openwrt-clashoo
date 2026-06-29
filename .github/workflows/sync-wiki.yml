@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'skills/clashoo-user-guide/references/**'
+      - '.github/skills/clashoo-user-guide/references/**'
   workflow_dispatch:
 
 permissions:
@@ -26,7 +26,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          REF_DIR="skills/clashoo-user-guide/references"
+          REF_DIR=".github/skills/clashoo-user-guide/references"
           WIKI_DIR="$(mktemp -d)"
           REPO="${GITHUB_REPOSITORY}"
 
