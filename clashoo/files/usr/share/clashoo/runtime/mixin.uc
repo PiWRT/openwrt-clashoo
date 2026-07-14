@@ -148,6 +148,7 @@ uci.foreach('clashoo', 'dns_policy', function(sec) {
 	let servers = sec.nameserver;
 	if (type(servers) != 'array') servers = servers != null ? [servers] : [];
 	if (!length(matcher) || !length(servers)) return;
+	if (matcher == 'geosite:cn') { matcher = 'rule-set:cn_domain'; need_cn_rs = true; }
 	policies[matcher] = servers;
 });
 if (length(keys(policies)) && !dns_present['nameserver-policy'])
