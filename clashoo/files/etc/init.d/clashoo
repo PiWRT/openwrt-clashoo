@@ -1285,6 +1285,17 @@ smart_inject() {
 }
 
 
+_lan_dns_split_enabled() {
+	is_singbox_selected && return 1
+	case "$(uci -q get clashoo.config.access_control 2>/dev/null)" in
+		1|2) ;;
+		*) return 1 ;;
+	esac
+	[ "$(uci -q get clashoo.config.enable_dns 2>/dev/null)" != "0" ] || return 1
+	[ "$(uci -q get clashoo.config.ipv4_dns_hijack 2>/dev/null)" = "1" ] ||
+		[ "$(uci -q get clashoo.config.ipv6_dns_hijack 2>/dev/null)" = "1" ]
+}
+
 yml_dns_change(){
 #=========================================================================================================================== 	
 	dns_port=$(sed -n 's/^[[:space:]]*listen:.*:[[:space:]]*['"'"'"]*\([0-9]\{1,\}\)['"'"'"]*[[:space:]]*$/\1/p' /etc/clashoo/config.yaml 2>/dev/null | head -n1)
@@ -1299,6 +1310,10 @@ yml_dns_change(){
 	dnsforwader=$(uci get clashoo.config.dnsforwader 2>/dev/null)
 	dnscache=$(uci get clashoo.config.dnscache 2>/dev/null)
 	if [ "$(uci -q get clashoo.config.enable_dns 2>/dev/null)" = "0" ]; then
+		revert_dns >/dev/null 2>&1
+		return 0
+	fi
+	if _lan_dns_split_enabled; then
 		revert_dns >/dev/null 2>&1
 		return 0
 	fi
